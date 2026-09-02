@@ -6,7 +6,10 @@ import com.smarthelpdesk.apigateway.entity.enums.TicketStatus;
 
 import java.time.Instant;
 import java.util.UUID;
-
+/**
+ * Преобразует User между Entity и DTO.
+ * Используется при формировании ответов API и работе с запросами.
+ */
 public record UserMapper(
         UUID id,
         TicketStatus status,

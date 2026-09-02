@@ -7,7 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.UUID;
-
+/**
+ * Репозиторий для работы с сущностью Ticket.
+ * Предоставляет сохранение и поиск тикетов через Spring Data JPA.
+ */
 public interface TicketRepository extends JpaRepository<Ticket, UUID>,
         JpaSpecificationExecutor<Ticket> {
 

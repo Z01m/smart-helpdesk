@@ -3,10 +3,17 @@ package com.smarthelpdesk.apigateway.service;
 import com.smarthelpdesk.apigateway.entity.User;
 import com.smarthelpdesk.apigateway.exception.UserNotFoundException;
 import com.smarthelpdesk.apigateway.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-
+@Service
+@RequiredArgsConstructor
+/**
+ * Содержит бизнес-логику работы с пользователями.
+ * Отвечает за получение, изменение и поиск пользователей.
+ */
 public class UserService {
 
     private UserRepository userRepository;

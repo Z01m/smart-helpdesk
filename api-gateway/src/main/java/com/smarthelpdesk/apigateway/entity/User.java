@@ -11,6 +11,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * JPA-сущность пользователя системы.
+ * Хранит данные пользователя, его роль и уровень обслуживания.
+ */
+
 @Entity
 @Table(name = "users")
 @Getter

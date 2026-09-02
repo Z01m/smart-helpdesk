@@ -8,6 +8,11 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * История изменения статусов тикета.
+ * Используется для отслеживания переходов тикета между состояниями.
+ */
+
 @Entity
 @Table(name = "ticket_status_history")
 @Getter

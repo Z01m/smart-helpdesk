@@ -12,6 +12,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * JPA-сущность тикета.
+ * Представляет обращение пользователя и хранится в таблице tickets.
+ */
+
 @Entity
 @Table(name = "tickets")
 @Getter
