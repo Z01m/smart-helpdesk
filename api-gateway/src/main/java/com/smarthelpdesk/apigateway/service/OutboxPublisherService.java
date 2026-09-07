@@ -15,10 +15,11 @@ public class OutboxPublisherService {
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
 
-    public OutboxEvent saveEvent(String aggregateType, UUID aggregateId, String eventType, Object payload) {
+    public OutboxEvent saveEvent(String aggregateType, UUID aggregateId, String eventType,  String correlationId,Object payload) {
         OutboxEvent outboxEvent = new OutboxEvent();
         outboxEvent.setAggregateType(aggregateType);
         outboxEvent.setEventType(eventType);
+        outboxEvent.setCorrelationId(correlationId);
         outboxEvent.setPayload(objectMapper.writeValueAsString(payload));
         outboxEvent.setAggregateId(aggregateId);
         outboxEvent.setPublished(false);

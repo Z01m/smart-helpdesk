@@ -13,6 +13,7 @@ import com.smarthelpdesk.apigateway.security.JwtTokenProvider;
 import com.smarthelpdesk.apigateway.service.CustomUserDetailsService;
 import com.smarthelpdesk.apigateway.service.TicketService;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import tools.jackson.databind.json.JsonMapper;
@@ -37,11 +38,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request
         .SecurityMockMvcRequestPostProcessors.user;
 
-import static org.springframework.test.web.servlet.request
-        .MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request
-        .MockMvcRequestBuilders.post;
-
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result
         .MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result
@@ -169,6 +166,59 @@ class TicketControllerTest {
                 )
                 .andDo(print())
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void assignTicket_shouldReturn403_whenServiceThrowsAccessDenied()
+            throws Exception {
+
+        UUID operatorId = UUID.randomUUID();
+
+        when(ticketService.assignOperator(
+                eq(ticketId),
+                eq(operatorId),
+                any(CustomUserDetails.class)
+        )).thenThrow(
+                new AccessDeniedException(
+                        "Only operators and admins can change tickets"
+                )
+        );
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/tickets/{ticketId}/assign",
+                                ticketId
+                        )
+                                .principal(authentication)
+                                .contentType("application/json")
+                                .content("""
+                                    {
+                                      "operatorId": "%s"
+                                    }
+                                    """.formatted(operatorId))
+                )
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(
+                        jsonPath("$.message")
+                                .value("Only operators and admins can change tickets")
+                )
+                .andExpect(
+                        jsonPath("$.path")
+                                .value(
+                                        "/api/v1/tickets/"
+                                                + ticketId
+                                                + "/assign"
+                                )
+                );
+
+        verify(ticketService).assignOperator(
+                eq(ticketId),
+                eq(operatorId),
+                any(CustomUserDetails.class)
+        );
     }
 
     @Test

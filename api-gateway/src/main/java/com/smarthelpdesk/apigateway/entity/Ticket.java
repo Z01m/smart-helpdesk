@@ -63,4 +63,7 @@ public class Ticket {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    @Column(name = "answer")
+    private String answer;
 }

@@ -1,5 +1,6 @@
 package com.smarthelpdesk.apigateway.controller;
 
+import com.smarthelpdesk.apigateway.dto.request.AssignOperatorRequest;
 import com.smarthelpdesk.apigateway.dto.request.CreateTicketRequest;
 import com.smarthelpdesk.apigateway.dto.request.UpdateTicketStatusRequest;
 import com.smarthelpdesk.apigateway.dto.response.TicketResponse;
@@ -93,6 +94,21 @@ public class TicketController {
         return ResponseEntity.ok(
                 ticketMapper.toResponse(ticket)
         );
+    }
+
+    @PatchMapping("/{ticketId}/assign")
+    public ResponseEntity<TicketResponse> assignTicket(
+            @PathVariable("ticketId") UUID ticketId,
+            @Valid @RequestBody AssignOperatorRequest request,
+            Authentication authentication)
+            throws AccessDeniedForTicketException
+    {
+        CustomUserDetails userDetails =
+                (CustomUserDetails) authentication.getPrincipal();
+        Ticket ticket =  ticketService.assignOperator(ticketId, request.operatorId(), userDetails);
+
+        return ResponseEntity.ok(
+                ticketMapper.toResponse(ticket));
     }
 
     @GetMapping

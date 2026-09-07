@@ -45,4 +45,7 @@ public class OutboxEvent {
 
     @Column(name = "published_at")
     private Instant publishedAt;
+
+    @Column(name = "correlation_id")
+    private String correlationId;
 }

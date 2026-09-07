@@ -1,0 +1,268 @@
+# =========================================================
+# Java / JVM
+# =========================================================
+
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+hs_err_pid*
+replay_pid*
+
+# =========================================================
+# Maven
+# =========================================================
+
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Maven Wrapper JAR обычно можно хранить в git,
+# поэтому .mvn/wrapper/maven-wrapper.jar НЕ игнорируем.
+
+# =========================================================
+# Gradle
+# =========================================================
+
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# =========================================================
+# IntelliJ IDEA
+# =========================================================
+
+.idea/
+
+*.iml
+*.ipr
+*.iws
+
+out/
+
+# Иногда IntelliJ создаёт локальные конфиги
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries/
+.idea/**/shelf/
+
+# =========================================================
+# VS Code
+# =========================================================
+
+.vscode/
+
+# =========================================================
+# Eclipse
+# =========================================================
+
+.classpath
+.project
+.settings/
+.factorypath
+
+# =========================================================
+# Operating System
+# =========================================================
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# =========================================================
+# Logs
+# =========================================================
+
+*.log
+logs/
+log/
+
+# Spring Boot / application logs
+spring.log
+application.log
+
+# =========================================================
+# Temporary files
+# =========================================================
+
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.orig
+
+tmp/
+temp/
+
+# =========================================================
+# Environment variables / secrets
+# =========================================================
+
+.env
+.env.*
+!.env.example
+
+# Local Spring configuration with secrets
+application-local.yml
+application-local.yaml
+application-local.properties
+
+application-dev-local.yml
+application-dev-local.yaml
+application-dev-local.properties
+
+application-docker-local.yml
+application-docker-local.yaml
+application-docker-local.properties
+
+# =========================================================
+# Secrets / credentials
+# =========================================================
+
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+secrets/
+credentials/
+
+# =========================================================
+# Docker
+# =========================================================
+
+# Docker Compose override files usually contain local settings
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Local Docker environment files
+docker/.env
+docker/*.env
+
+# =========================================================
+# PostgreSQL / database dumps
+# =========================================================
+
+*.sql.gz
+*.dump
+*.backup
+*.bak
+
+db-dump/
+db-dumps/
+backups/
+
+# =========================================================
+# Redis local data
+# =========================================================
+
+dump.rdb
+appendonly.aof
+appendonlydir/
+
+# =========================================================
+# Kafka local data
+# =========================================================
+
+kafka-data/
+zookeeper-data/
+
+# =========================================================
+# OpenAI / AI provider local files
+# =========================================================
+
+.openai/
+openai.env
+
+# =========================================================
+# Test reports / coverage
+# =========================================================
+
+coverage/
+test-results/
+
+*.exec
+
+# JaCoCo
+jacoco.exec
+jacoco-report/
+
+# =========================================================
+# Spring Boot
+# =========================================================
+
+# Spring DevTools restart files
+.restart/
+
+# =========================================================
+# Node.js
+# На случай если позже появится frontend
+# =========================================================
+
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+dist/
+
+# =========================================================
+# Generated files
+# =========================================================
+
+generated/
+generated-sources/
+
+# =========================================================
+# Local miscellaneous
+# =========================================================
+
+.local/
+.cache/
+
+# =========================================================
+# Project-specific
+# =========================================================
+
+# Не коммитим реальные секреты проекта
+.env
+api-gateway/.env
+ai-worker/.env
+notification-service/.env
+knowledge-base-service/.env
+
+# Локальные application-файлы каждого сервиса
+api-gateway/src/main/resources/application-local.yml
+api-gateway/src/main/resources/application-local.yaml
+
+ai-worker/src/main/resources/application-local.yml
+ai-worker/src/main/resources/application-local.yaml
+
+notification-service/src/main/resources/application-local.yml
+notification-service/src/main/resources/application-local.yaml
+
+knowledge-base-service/src/main/resources/application-local.yml
+knowledge-base-service/src/main/resources/application-local.yaml

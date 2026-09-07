@@ -1,5 +1,6 @@
 package com.smarthelpdesk.apigateway.security;
 
+import com.smarthelpdesk.apigateway.util.CorrelationIdFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +16,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final CorrelationIdFilter correlationIdFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -35,9 +39,11 @@ public class SecurityConfig {
                 ).permitAll()
                         .anyRequest()
                         .authenticated())
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)) //можно подключать обработку нескольких исключений в одну строку а не делать несколько одинаковых
+                .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
-
 
     }
 }

@@ -4,7 +4,9 @@ package com.smarthelpdesk.apigateway.service;
 import com.smarthelpdesk.apigateway.entity.Ticket;
 import com.smarthelpdesk.apigateway.entity.TicketStatusHistory;
 import com.smarthelpdesk.apigateway.entity.User;
+import com.smarthelpdesk.apigateway.entity.enums.Priority;
 import com.smarthelpdesk.apigateway.entity.enums.Role;
+import com.smarthelpdesk.apigateway.entity.enums.Sentiment;
 import com.smarthelpdesk.apigateway.entity.enums.TicketStatus;
 import com.smarthelpdesk.apigateway.exception.AccessDeniedForTicketException;
 import com.smarthelpdesk.apigateway.exception.InvalidStatusTransitionException;
@@ -15,11 +17,14 @@ import com.smarthelpdesk.apigateway.repository.TicketStatusHistoryRepository;
 import com.smarthelpdesk.apigateway.repository.UserRepository;
 import com.smarthelpdesk.apigateway.security.CustomUserDetails;
 import kafka.KafkaTopics;
+import kafka.event.EventEnvelope;
 import kafka.event.TicketCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +57,6 @@ public class TicketService {
         Ticket saved = ticketRepository.save(ticket);
 
         TicketCreatedEvent event =  TicketCreatedEvent.builder()
-                .eventId(UUID.randomUUID())
                 .ticketId(saved.getId())
                 .userId(userId)
                 .message(saved.getMessage())
@@ -60,11 +64,23 @@ public class TicketService {
                 .createdAt(Instant.now())
                 .build();
 
+        String correlationId = MDC.get("correlationId");
+
+        EventEnvelope<TicketCreatedEvent> eventEnvelope =
+                EventEnvelope.<TicketCreatedEvent>builder()
+                        .eventId(UUID.randomUUID())
+                        .eventType(KafkaTopics.TICKET_CREATED.name())
+                        .occurredAt(Instant.now())
+                        .correlationId(correlationId)
+                        .payload(event)
+                        .build();
+
         outboxPublisherService.saveEvent(
                 "Ticket",
                 saved.getId(),
                 KafkaTopics.TICKET_CREATED.name(),
-                event
+                correlationId,
+                eventEnvelope
         );
 
         log.info("Ticket created: ticketId={}, userId={}", saved.getId(), userId);
@@ -102,7 +118,7 @@ public class TicketService {
     ) {
 
         if (!isOperatorOrAdmin(currentUser)) {
-            throw new org.springframework.security.access.AccessDeniedException(
+            throw new AccessDeniedException(
                     "Only operators and admins can view all tickets"
             );
         }
@@ -111,9 +127,18 @@ public class TicketService {
     }
 
     @Transactional
-    public Ticket assignOperator(UUID ticketId, UUID operatorId){
+    public Ticket assignOperator(UUID ticketId, UUID operatorId, CustomUserDetails currentUser){
+        if(!isOperatorOrAdmin(currentUser)) {
+            throw new AccessDeniedException("Only operators and admins can change tickets");
+        }
+
         Ticket ticket = ticketRepository.findById(ticketId).orElseThrow(() -> new TicketNotFoundException(ticketId));
+
         User operator = userRepository.findById(operatorId).orElseThrow(() -> new UserNotFoundException(operatorId));
+        if(!operator.getRole().equals(Role.OPERATOR)) {
+            throw new AccessDeniedException("Selected user is not an operator");
+        }
+
         ticket.setOperator(operator);
         return ticketRepository.save(ticket);
     }
@@ -213,6 +238,41 @@ public class TicketService {
     @Transactional
     public Ticket reopen(UUID ticketId, CustomUserDetails currentUser) throws AccessDeniedForTicketException {
         return updateStatus(ticketId, TicketStatus.REOPENED, currentUser);
+    }
+
+    @Transactional
+    public Ticket applyAiResult(
+            UUID ticketId,
+            String category,
+            String priority,
+            String sentiment,
+            String answer
+    ) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+
+        TicketStatus oldStatus = ticket.getStatus();
+        TicketStatus newStatus = TicketStatus.ANSWED;
+
+        validateStatusTransition(oldStatus, newStatus);
+
+        ticket.setCategory(category);
+        ticket.setPriority(Priority.valueOf(priority));
+        ticket.setSentiment(Sentiment.valueOf(sentiment));
+        ticket.setAnswer(answer);
+
+        TicketStatusHistory history = TicketStatusHistory.builder()
+                .ticket(ticket)
+                .fromStatus(oldStatus)
+                .toStatus(newStatus)
+                .changedBy(null)
+                .build();
+
+        ticketStatusHistoryRepository.save(history);
+
+        ticket.setStatus(newStatus);
+
+        return ticketRepository.save(ticket);
     }
 
 }

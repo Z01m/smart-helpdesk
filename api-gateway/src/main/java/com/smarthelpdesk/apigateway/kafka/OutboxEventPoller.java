@@ -36,7 +36,10 @@ public class OutboxEventPoller {
                 continue;
             }
 
-            CompletableFuture<SendResult<String,String>> future = ticketEventProducer.send(outboxEvent.getPayload());
+            CompletableFuture<SendResult<String,String>> future = ticketEventProducer.send(
+                    outboxEvent.getAggregateId(),
+                    outboxEvent.getCorrelationId(),
+                    outboxEvent.getPayload());
 
             future.whenComplete((result, exception) -> {
 

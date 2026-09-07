@@ -1,3 +1,0 @@
-kafka\event\TicketCreatedEvent.class
-kafka\event\TicketCreatedEvent$TicketCreatedEventBuilder.class
-kafka\KafkaTopics.class
