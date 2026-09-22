@@ -26,7 +26,7 @@
     <modules>
         <module>common</module>
         <module>api-gateway</module>
-        <!-- <module>ai-worker</module> -->
+        <module>ai-worker</module>
         <!-- <module>notification-service</module> -->
         <!-- <module>knowledge-base-service</module> -->
     </modules>
