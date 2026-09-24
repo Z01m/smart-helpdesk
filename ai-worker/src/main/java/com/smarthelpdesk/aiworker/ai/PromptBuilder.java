@@ -92,6 +92,7 @@ public class PromptBuilder {
 
     public PromptRequest buildAnswerPrompt(
             String message,
+            String context,
             ClassificationResult classificationResult,
             SentimentResult sentimentResult,
             PriorityResult priorityResult
@@ -121,7 +122,19 @@ public class PromptBuilder {
             );
         }
 
+        String preparedContext;
+
+        if (context == null || context.isBlank()) {
+            preparedContext =
+                    "No relevant knowledge base context was found.";
+        } else {
+            preparedContext = context;
+        }
+
         String userPrompt = """
+                Knowledge base context:
+                %s
+
                 User message:
                 %s
 
@@ -131,10 +144,11 @@ public class PromptBuilder {
                 Priority: %s
                 """
                 .formatted(
+                        preparedContext,
                         message,
-                        classificationResult.category().name(),
-                        sentimentResult.sentiment().name(),
-                        priorityResult.priority().name()
+                        String.valueOf(classificationResult.category()),
+                        String.valueOf(sentimentResult.sentiment()),
+                        String.valueOf(priorityResult.priority())
                 );
 
         return new PromptRequest(

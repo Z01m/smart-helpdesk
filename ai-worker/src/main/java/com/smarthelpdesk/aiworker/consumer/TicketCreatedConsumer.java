@@ -2,6 +2,7 @@ package com.smarthelpdesk.aiworker.consumer;
 
 import com.smarthelpdesk.aiworker.entity.AiProcessingResult;
 import com.smarthelpdesk.aiworker.entity.ProcessedEvent;
+import com.smarthelpdesk.aiworker.entity.TicketResult;
 import com.smarthelpdesk.aiworker.producer.TicketProcessedProducer;
 import com.smarthelpdesk.aiworker.repository.ProcessedEventRepository;
 import com.smarthelpdesk.aiworker.service.TicketProcessingOrchestrator;
@@ -65,7 +66,7 @@ public class TicketCreatedConsumer {
 
             TicketCreatedEvent payload = envelope.getPayload();
 
-            AiProcessingResult result = ticketProcessingOrchestrator.process(payload);
+            TicketResult result = ticketProcessingOrchestrator.process(payload);
 
             ticketProcessedProducer.send(result, correlationId);
 

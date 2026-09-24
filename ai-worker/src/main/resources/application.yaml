@@ -60,6 +60,14 @@ logging:
 ai:
   base-url: http://localhost:11434
 
+knowledge-base:
+  base-url: ${KNOWLEDGE_BASE_URL:http://localhost:8083}
+  api-key: ${INTERNAL_API_KEY:dev-internal-key}
+
+rag:
+  confidence-threshold: 0.75
+  default-top-k: 5
+
   model: qwen3:4b
   embedding-model: nomic-embed-text
 

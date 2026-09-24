@@ -15,13 +15,13 @@ public class EmbeddingService {
 
     public final AiClient aiClient;
 
-    private float[] embed(String text){
+    public float[] embed(String text){
         if(text == null||text.isEmpty()){
             throw new IllegalArgumentException("text is null or empty");
         }
         float[] result = aiClient.embed(text);
         if(result == null||result.length==0){
-            throw new IllegalArgumentException("result is null or empty");
+            throw new IllegalStateException("result is null or empty");
         }
         return result;
     }

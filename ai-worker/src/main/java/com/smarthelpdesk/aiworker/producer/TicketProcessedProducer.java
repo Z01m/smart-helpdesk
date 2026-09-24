@@ -1,6 +1,6 @@
 package com.smarthelpdesk.aiworker.producer;
 
-import com.smarthelpdesk.aiworker.entity.AiProcessingResult;
+import com.smarthelpdesk.aiworker.entity.TicketResult;
 import kafka.KafkaTopics;
 import kafka.event.EventEnvelope;
 import kafka.event.TicketProcessedEvent;
@@ -9,10 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -23,23 +24,42 @@ public class TicketProcessedProducer {
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public void send(AiProcessingResult result, String correlationId) {
+    public void send(
+            TicketResult result,
+            String correlationId
+    ) {
 
-        TicketProcessedEvent event = TicketProcessedEvent.builder()
-                .ticketId(result.getTicketId())
-                .processedAt(result.getProcessedAt())
-                .answer(result.getAnswer())
-                .category(result.getCategory())
-                .priority(result.getPriority())
-                .sentiment(result.getSentiment())
-                .build();
+        if (result == null) {
+            throw new IllegalArgumentException("result cannot be null");
+        }
+
+        String actualCorrelationId =
+                correlationId == null || correlationId.isBlank()
+                        ? UUID.randomUUID().toString()
+                        : correlationId;
+
+        TicketProcessedEvent event =
+                TicketProcessedEvent.builder()
+                        .ticketId(result.getTicketId())
+                        .category(result.getCategory())
+                        .priority(result.getPriority())
+                        .sentiment(result.getSentiment())
+                        .confidence(result.getConfidence())
+                        .generatedAnswer(result.getGeneratedAnswer())
+                        .contextSources(
+                                deserializeContextSources(
+                                        result.getContextSources()
+                                )
+                        )
+                        .processedAt(result.getCreatedAt())
+                        .build();
 
         EventEnvelope<TicketProcessedEvent> envelope =
                 EventEnvelope.<TicketProcessedEvent>builder()
                         .eventId(UUID.randomUUID())
                         .eventType("TICKET_PROCESSED")
-                        .occurredAt(Instant.now())
-                        .correlationId(correlationId)
+                        .occurredAt(result.getCreatedAt())
+                        .correlationId(actualCorrelationId)
                         .payload(event)
                         .build();
 
@@ -53,12 +73,10 @@ public class TicketProcessedProducer {
                         jsonPayload
                 );
 
-        if (correlationId != null) {
-            record.headers().add(
-                    "correlationId",
-                    correlationId.getBytes(StandardCharsets.UTF_8)
-            );
-        }
+        record.headers().add(
+                "correlationId",
+                actualCorrelationId.getBytes(StandardCharsets.UTF_8)
+        );
 
         kafkaTemplate.send(record);
 
@@ -66,6 +84,22 @@ public class TicketProcessedProducer {
                 "Sent ticket.processed event {} for ticket {}",
                 envelope.getEventId(),
                 result.getTicketId()
+        );
+    }
+
+    private List<TicketProcessedEvent.ContextSource>
+    deserializeContextSources(String json) {
+
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+
+        return objectMapper.readValue(
+                json,
+                new TypeReference<
+                        List<TicketProcessedEvent.ContextSource>
+                        >() {
+                }
         );
     }
 }
