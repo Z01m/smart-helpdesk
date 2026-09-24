@@ -56,3 +56,15 @@ management:
 logging:
   level:
     org.hibernate.SQL: debug
+
+ai:
+  base-url: http://localhost:11434
+
+  model: qwen3:4b
+  embedding-model: nomic-embed-text
+
+  classification-temperature: 0.1
+  answer-temperature: 0.4
+
+  classification-top-p: 1.0
+  answer-top-p: 0.9
