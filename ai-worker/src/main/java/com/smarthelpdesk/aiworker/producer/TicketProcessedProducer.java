@@ -59,7 +59,7 @@ public class TicketProcessedProducer {
         EventEnvelope<TicketProcessedEvent> envelope =
                 EventEnvelope.<TicketProcessedEvent>builder()
                         .eventId(UUID.randomUUID())
-                        .eventType("TICKET_PROCESSED")
+                        .eventType(KafkaTopics.TICKET_PROCESSED.name())
                         .occurredAt(result.getCreatedAt())
                         .correlationId(actualCorrelationId)
                         .payload(event)
@@ -80,7 +80,7 @@ public class TicketProcessedProducer {
                 actualCorrelationId.getBytes(StandardCharsets.UTF_8)
         );
 
-        kafkaTemplate.send(record);
+        kafkaTemplate.send(record).join();
 
         log.info(
                 "Sent ticket.processed event {} for ticket {}",

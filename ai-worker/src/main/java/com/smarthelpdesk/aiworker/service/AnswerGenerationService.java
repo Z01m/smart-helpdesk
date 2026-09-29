@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -20,10 +21,17 @@ public class AnswerGenerationService {
     private final PromptBuilder promptBuilder;
     private final AiClient aiClient;
 
-    public GeneratedAnswer generate(String message, String context, ClassificationResult classificationResult, SentimentResult sentimentResult, PriorityResult priorityResult, double confidence) {
+    public GeneratedAnswer generate(
+            String message,
+            String context,
+            ClassificationResult classificationResult,
+            SentimentResult sentimentResult,
+            PriorityResult priorityResult,
+            double confidence
+    ) {
 
         if (message == null || message.isBlank()) {
-            throw new IllegalArgumentException("message must not be null or blank" );
+            throw new IllegalArgumentException("message must not be null or blank");
         }
 
         if (classificationResult == null) {
@@ -46,7 +54,13 @@ public class AnswerGenerationService {
                 context == null ? "" : context;
 
         PromptRequest promptRequest =
-                promptBuilder.buildAnswerPrompt(message, preparedContext, classificationResult, sentimentResult, priorityResult);
+                promptBuilder.buildAnswerPrompt(
+                        message,
+                        preparedContext,
+                        classificationResult,
+                        sentimentResult,
+                        priorityResult
+                );
 
         AiResponse response = aiClient.chatCompletion(promptRequest);
 
@@ -55,25 +69,52 @@ public class AnswerGenerationService {
         }
 
         if (response.rawText() == null || response.rawText().isBlank()) {
-
             throw new IllegalStateException("AI returned empty answer");
         }
 
-        return new GeneratedAnswer(response.rawText().trim(), List.of(), extractTokensUsed(response));
+        return new GeneratedAnswer(
+                response.rawText().trim(),
+                List.of(),
+                extractTokensUsed(response)
+        );
     }
 
     private int extractTokensUsed(AiResponse response) {
 
-        if (response.usage() == null
-                || response.usage().isEmpty()) {
+        Map<String, Object> usage = response.usage();
+
+        if (usage == null || usage.isEmpty()) {
             return 0;
         }
 
-        Object totalTokens =
-                response.usage().get("total_tokens");
+        int totalTokens = tokenCount(
+                usage.get("totalTokens"),
+                usage.get("total_tokens")
+        );
 
-        if (totalTokens instanceof Number number) {
-            return number.intValue();
+        if (totalTokens > 0) {
+            return totalTokens;
+        }
+
+        int promptTokens = tokenCount(
+                usage.get("promptTokens"),
+                usage.get("prompt_tokens")
+        );
+
+        int completionTokens = tokenCount(
+                usage.get("completionTokens"),
+                usage.get("completion_tokens")
+        );
+
+        return promptTokens + completionTokens;
+    }
+
+    private int tokenCount(Object... values) {
+
+        for (Object value : values) {
+            if (value instanceof Number number) {
+                return Math.max(number.intValue(), 0);
+            }
         }
 
         return 0;

@@ -19,33 +19,58 @@ public class RagPipeline {
     private final RagProperties ragProperties;
     private final ContextBuilder contextBuilder;
 
-    public List<ScoredChunk> retrieveContext(String query) {
-        return retrieveContext(query, ragProperties.getDefaultTopK());
+    public List<ScoredChunk> retrieveContext(
+            String query
+    ) {
+        return retrieveContext(
+                query,
+                ragProperties.getDefaultTopK()
+        );
     }
 
+    public List<ScoredChunk> retrieveContext(
+            String query,
+            int topK
+    ) {
 
-    public List<ScoredChunk> retrieveContext(String query, int topK){
-        if (query == null || query.isBlank()){
-            throw new IllegalArgumentException("query must not be null or empty");
+        if (query == null || query.isBlank()) {
+            throw new IllegalArgumentException(
+                    "query must not be null or blank"
+            );
         }
-        if (topK <= 0){
-            throw new IllegalArgumentException("topK must not be negative");
-        }
-        float[] embedding;
-        embedding = embeddingService.embed(query);
-        KnowledgeSearchRequest knowledgeSearchRequest = new KnowledgeSearchRequest(embedding, topK);
-        KnowledgeSearchResponse knowledgeSearchResponse = knowledgeBaseClient.search(knowledgeSearchRequest);
 
-        if (knowledgeSearchResponse.chunks() == null) {
+        if (topK <= 0) {
+            throw new IllegalArgumentException(
+                    "topK must be greater than 0"
+            );
+        }
+
+        float[] embedding =
+                embeddingService.embed(query);
+
+        KnowledgeSearchRequest request =
+                new KnowledgeSearchRequest(
+                        embedding,
+                        topK
+                );
+
+        KnowledgeSearchResponse response =
+                knowledgeBaseClient.search(
+                        request
+                );
+
+        if (response.chunks() == null) {
             throw new IllegalStateException(
                     "Knowledge Base returned null chunks"
             );
         }
 
-        return knowledgeSearchResponse.chunks();
+        return response.chunks();
     }
 
-    public double getMaxScore(List<ScoredChunk> chunks) {
+    public double getMaxScore(
+            List<ScoredChunk> chunks
+    ) {
 
         if (chunks == null || chunks.isEmpty()) {
             return 0.0;
@@ -58,31 +83,58 @@ public class RagPipeline {
                 .orElse(0.0);
     }
 
-    public boolean hasRelevantContext(List<ScoredChunk> chunks) {
+    public boolean hasRelevantContext(
+            List<ScoredChunk> chunks
+    ) {
+
         if (chunks == null || chunks.isEmpty()) {
             return false;
         }
-        double maxScore = getMaxScore(chunks);
-        return maxScore >= ragProperties.getConfidenceThreshold();
+
+        return getMaxScore(chunks)
+                >= ragProperties.getConfidenceThreshold();
     }
 
-    public String buildContext(List<ScoredChunk> chunks, int maxTokens) {
-        return contextBuilder.build(chunks, maxTokens);
-    }
-
-    public String buildContext(String query, int maxTokens) {
-        return buildContext(query, ragProperties.getDefaultTopK(), maxTokens
+    public String buildContext(
+            List<ScoredChunk> chunks,
+            int maxTokens
+    ) {
+        return contextBuilder.build(
+                chunks,
+                maxTokens
         );
     }
 
-    public String buildContext(String query, int topK, int maxTokens) {
+    public String buildContext(
+            String query,
+            int maxTokens
+    ) {
+        return buildContext(
+                query,
+                ragProperties.getDefaultTopK(),
+                maxTokens
+        );
+    }
 
-        List<ScoredChunk> chunks = retrieveContext(query, topK);
+    public String buildContext(
+            String query,
+            int topK,
+            int maxTokens
+    ) {
+
+        List<ScoredChunk> chunks =
+                retrieveContext(
+                        query,
+                        topK
+                );
 
         if (!hasRelevantContext(chunks)) {
             return "";
         }
 
-        return contextBuilder.build(chunks, maxTokens);
+        return contextBuilder.build(
+                chunks,
+                maxTokens
+        );
     }
 }
