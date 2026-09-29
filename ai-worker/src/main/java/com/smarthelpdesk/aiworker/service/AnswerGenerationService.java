@@ -59,7 +59,7 @@ public class AnswerGenerationService {
             throw new IllegalStateException("AI returned empty answer");
         }
 
-        return new GeneratedAnswer(response.rawText().trim(), confidence);
+        return new GeneratedAnswer(response.rawText().trim(), List.of(), extractTokensUsed(response));
     }
 
     private int extractTokensUsed(AiResponse response) {

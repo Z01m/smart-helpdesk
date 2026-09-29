@@ -96,9 +96,7 @@ public class TicketProcessedProducer {
 
         return objectMapper.readValue(
                 json,
-                new TypeReference<
-                        List<TicketProcessedEvent.ContextSource>
-                        >() {
+                new TypeReference<List<TicketProcessedEvent.ContextSource>>() {
                 }
         );
     }
