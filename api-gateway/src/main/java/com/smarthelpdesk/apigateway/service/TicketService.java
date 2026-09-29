@@ -246,33 +246,81 @@ public class TicketService {
             String category,
             String priority,
             String sentiment,
-            String answer
+            String answer,
+            boolean requiresHumanReview
     ) {
+
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+                .orElseThrow(
+                        () -> new TicketNotFoundException(ticketId)
+                );
 
-        TicketStatus oldStatus = ticket.getStatus();
-        TicketStatus newStatus = TicketStatus.ANSWED;
+        if (ticket.getStatus() == TicketStatus.NEW
+                || ticket.getStatus() == TicketStatus.REOPENED) {
 
-        validateStatusTransition(oldStatus, newStatus);
+            changeSystemStatus(
+                    ticket,
+                    TicketStatus.PROCESSING
+            );
+        }
+
+        if (ticket.getStatus() == TicketStatus.PROCESSING) {
+
+            changeSystemStatus(
+                    ticket,
+                    TicketStatus.CLASSIFIED
+            );
+        }
+
+        TicketStatus finalStatus =
+                requiresHumanReview
+                        ? TicketStatus.WAITIND_OPERATOR
+                        : TicketStatus.ANSWED;
+
+        changeSystemStatus(
+                ticket,
+                finalStatus
+        );
 
         ticket.setCategory(category);
-        ticket.setPriority(Priority.valueOf(priority));
-        ticket.setSentiment(Sentiment.valueOf(sentiment));
+        ticket.setPriority(
+                Priority.valueOf(priority)
+        );
+        ticket.setSentiment(
+                Sentiment.valueOf(sentiment)
+        );
         ticket.setAnswer(answer);
 
-        TicketStatusHistory history = TicketStatusHistory.builder()
-                .ticket(ticket)
-                .fromStatus(oldStatus)
-                .toStatus(newStatus)
-                .changedBy(null)
-                .build();
+        return ticketRepository.save(ticket);
+    }
+
+    private void changeSystemStatus(
+            Ticket ticket,
+            TicketStatus newStatus
+    ) {
+
+        TicketStatus oldStatus = ticket.getStatus();
+
+        if (oldStatus == newStatus) {
+            return;
+        }
+
+        validateStatusTransition(
+                oldStatus,
+                newStatus
+        );
+
+        TicketStatusHistory history =
+                TicketStatusHistory.builder()
+                        .ticket(ticket)
+                        .fromStatus(oldStatus)
+                        .toStatus(newStatus)
+                        .changedBy(null)
+                        .build();
 
         ticketStatusHistoryRepository.save(history);
 
         ticket.setStatus(newStatus);
-
-        return ticketRepository.save(ticket);
     }
 
 }

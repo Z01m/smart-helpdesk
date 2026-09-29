@@ -16,7 +16,8 @@ public record TicketProcessedEvent(
         BigDecimal confidence,
         String generatedAnswer,
         List<ContextSource> contextSources,
-        Instant processedAt
+        Instant processedAt,
+        boolean requiresHumanReview
 ) {
 
     public record ContextSource(

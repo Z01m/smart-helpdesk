@@ -1,7 +1,8 @@
 package com.smarthelpdesk.aiworker.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smarthelpdesk.aiworker.dto.processing.TicketProcessingOutcome;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.smarthelpdesk.aiworker.dto.ai.ClassificationResult;
 import com.smarthelpdesk.aiworker.dto.ai.GeneratedAnswer;
 import com.smarthelpdesk.aiworker.dto.ai.PriorityResult;
@@ -36,7 +37,7 @@ public class TicketProcessingOrchestrator {
     private final RagPipeline ragPipeline;
     private final ObjectMapper objectMapper;
 
-    public TicketResult process(TicketCreatedEvent event) {
+    public TicketProcessingOutcome process(TicketCreatedEvent event) {
 
         if (event == null) {
             throw new IllegalArgumentException("event cannot be null");
@@ -64,8 +65,10 @@ public class TicketProcessingOrchestrator {
         GeneratedAnswer generatedAnswer;
         List<ScoredChunk> usedChunks;
 
+        boolean requiresHumanReview = true;
         if (ragPipeline.hasRelevantContext(scoredChunks)) {
 
+            requiresHumanReview = false;
             String context =
                     ragPipeline.buildContext(
                             scoredChunks,
@@ -114,7 +117,9 @@ public class TicketProcessingOrchestrator {
                 .contextSources(serializeContextSources(usedChunks))
                 .build();
 
-        return ticketResultService.save(ticketResult);
+        TicketResult savedTicketResult = ticketResultService.save(ticketResult);
+        TicketProcessingOutcome outcome = new TicketProcessingOutcome(savedTicketResult,requiresHumanReview );
+        return outcome;
     }
 
     private List<UUID> extractSourceArticleIds(
@@ -143,7 +148,7 @@ public class TicketProcessingOrchestrator {
 
         try {
             return objectMapper.writeValueAsString(sources);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException(
                     "Failed to serialize RAG context sources",
                     exception

@@ -26,6 +26,7 @@ public class TicketProcessedProducer {
 
     public void send(
             TicketResult result,
+            boolean requiresHumanReview,
             String correlationId
     ) {
 
@@ -51,6 +52,7 @@ public class TicketProcessedProducer {
                                         result.getContextSources()
                                 )
                         )
+                        .requiresHumanReview(requiresHumanReview)
                         .processedAt(result.getCreatedAt())
                         .build();
 

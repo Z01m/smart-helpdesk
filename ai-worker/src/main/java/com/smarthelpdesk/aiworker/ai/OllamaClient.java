@@ -8,6 +8,7 @@ import com.smarthelpdesk.aiworker.config.AiClientConfig;
 import com.smarthelpdesk.aiworker.dto.ai.AiResponse;
 import com.smarthelpdesk.aiworker.dto.ai.PromptRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -15,11 +16,18 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 public class OllamaClient implements AiClient{
 
     private final RestClient restClient;
     private final AiClientConfig aiProperties;
+
+    public OllamaClient(
+            @Qualifier("aiRestClient") RestClient restClient,
+            AiClientConfig aiProperties
+    ) {
+        this.restClient = restClient;
+        this.aiProperties = aiProperties;
+    }
 
     @Override
     public AiResponse chatCompletion(PromptRequest request) {

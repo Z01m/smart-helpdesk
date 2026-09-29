@@ -72,7 +72,8 @@ public class TicketProcessedConsumer {
                     payload.category(),
                     payload.priority(),
                     payload.sentiment(),
-                    payload.generatedAnswer()
+                    payload.generatedAnswer(),
+                    payload.requiresHumanReview()
             );
 
             ProcessedEvent processedEvent = ProcessedEvent.builder()
