@@ -3,9 +3,9 @@ spring:
     name: ai-worker
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/ai_worker
-    username: helpdesk
-    password: helpdesk
+    url: ${AI_WORKER_DB_URL:jdbc:postgresql://localhost:5432/ai_worker}
+    username: ${AI_WORKER_DB_USERNAME:helpdesk}
+    password: ${AI_WORKER_DB_PASSWORD:helpdesk}
 
   jpa:
     hibernate:
@@ -22,7 +22,7 @@ spring:
     locations: classpath:db/migration
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
     consumer:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -40,12 +40,14 @@ spring:
 
       properties:
         enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
 
     listener:
       ack-mode: manual
+      concurrency: ${AI_WORKER_KAFKA_CONCURRENCY:3}
 
 server:
-  port: 8081
+  port: ${AI_WORKER_PORT:8081}
 
 management:
   endpoints:
@@ -58,29 +60,20 @@ logging:
     org.hibernate.SQL: debug
 
 ai:
-  base-url: http://localhost:11434
-  model: qwen3:4b
-  embedding-model: nomic-embed-text
+  base-url: ${AI_BASE_URL:http://localhost:11434}
+  model: ${AI_MODEL:qwen3:4b}
+  embedding-model: ${AI_EMBEDDING_MODEL:nomic-embed-text}
 
-  classification-temperature: 0.1
-  answer-temperature: 0.4
+  classification-temperature: ${AI_CLASSIFICATION_TEMPERATURE:0.1}
+  answer-temperature: ${AI_ANSWER_TEMPERATURE:0.4}
 
-  classification-top-p: 1.0
-  answer-top-p: 0.9
+  classification-top-p: ${AI_CLASSIFICATION_TOP_P:1.0}
+  answer-top-p: ${AI_ANSWER_TOP_P:0.9}
 
 knowledge-base:
   base-url: ${KNOWLEDGE_BASE_URL:http://localhost:8083}
   api-key: ${INTERNAL_API_KEY:dev-internal-key}
 
 rag:
-  confidence-threshold: 0.75
-  default-top-k: 5
-
-  model: qwen3:4b
-  embedding-model: nomic-embed-text
-
-  classification-temperature: 0.1
-  answer-temperature: 0.4
-
-  classification-top-p: 1.0
-  answer-top-p: 0.9
+  confidence-threshold: ${RAG_CONFIDENCE_THRESHOLD:0.75}
+  default-top-k: ${RAG_DEFAULT_TOP_K:5}

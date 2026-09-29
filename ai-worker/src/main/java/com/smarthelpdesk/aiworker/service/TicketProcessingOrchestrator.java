@@ -1,19 +1,19 @@
 package com.smarthelpdesk.aiworker.service;
 
-import com.smarthelpdesk.aiworker.dto.processing.TicketProcessingOutcome;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 import com.smarthelpdesk.aiworker.dto.ai.ClassificationResult;
 import com.smarthelpdesk.aiworker.dto.ai.GeneratedAnswer;
 import com.smarthelpdesk.aiworker.dto.ai.PriorityResult;
 import com.smarthelpdesk.aiworker.dto.ai.SentimentResult;
 import com.smarthelpdesk.aiworker.dto.ai.enums.CustomerTier;
 import com.smarthelpdesk.aiworker.dto.knowledge.ScoredChunk;
+import com.smarthelpdesk.aiworker.dto.processing.TicketProcessingOutcome;
 import com.smarthelpdesk.aiworker.entity.TicketResult;
 import com.smarthelpdesk.aiworker.rag.RagPipeline;
 import kafka.event.TicketCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -37,17 +37,25 @@ public class TicketProcessingOrchestrator {
     private final RagPipeline ragPipeline;
     private final ObjectMapper objectMapper;
 
-    public TicketProcessingOutcome process(TicketCreatedEvent event) {
+    public TicketProcessingOutcome process(
+            TicketCreatedEvent event
+    ) {
 
         if (event == null) {
-            throw new IllegalArgumentException("event cannot be null");
+            throw new IllegalArgumentException(
+                    "event cannot be null"
+            );
         }
 
         ClassificationResult classificationResult =
-                classificationService.classify(event.message());
+                classificationService.classify(
+                        event.message()
+                );
 
         SentimentResult sentimentResult =
-                sentimentAnalysisService.analyze(event.message());
+                sentimentAnalysisService.analyze(
+                        event.message()
+                );
 
         PriorityResult priorityResult =
                 priorityCalculationService.calculate(
@@ -57,18 +65,24 @@ public class TicketProcessingOrchestrator {
                 );
 
         List<ScoredChunk> scoredChunks =
-                ragPipeline.retrieveContext(event.message());
+                ragPipeline.retrieveContext(
+                        event.message()
+                );
 
         double confidence =
                 ragPipeline.getMaxScore(scoredChunks);
 
+        boolean hasRelevantContext =
+                ragPipeline.hasRelevantContext(scoredChunks);
+
+        boolean requiresHumanReview =
+                !hasRelevantContext;
+
         GeneratedAnswer generatedAnswer;
         List<ScoredChunk> usedChunks;
 
-        boolean requiresHumanReview = true;
-        if (ragPipeline.hasRelevantContext(scoredChunks)) {
+        if (hasRelevantContext) {
 
-            requiresHumanReview = false;
             String context =
                     ragPipeline.buildContext(
                             scoredChunks,
@@ -76,7 +90,9 @@ public class TicketProcessingOrchestrator {
                     );
 
             List<UUID> sourceArticleIds =
-                    extractSourceArticleIds(scoredChunks);
+                    extractSourceArticleIds(
+                            scoredChunks
+                    );
 
             GeneratedAnswer aiAnswer =
                     answerGenerationService.generate(
@@ -88,38 +104,67 @@ public class TicketProcessingOrchestrator {
                             confidence
                     );
 
-            generatedAnswer = new GeneratedAnswer(
-                    aiAnswer.text(),
-                    sourceArticleIds,
-                    aiAnswer.tokensUsed()
-            );
+            generatedAnswer =
+                    new GeneratedAnswer(
+                            aiAnswer.text(),
+                            sourceArticleIds,
+                            aiAnswer.tokensUsed()
+                    );
 
             usedChunks = scoredChunks;
 
         } else {
 
-            generatedAnswer = new GeneratedAnswer(
-                    FALLBACK_ANSWER,
-                    List.of(),
-                    0
-            );
+            generatedAnswer =
+                    new GeneratedAnswer(
+                            FALLBACK_ANSWER,
+                            List.of(),
+                            0
+                    );
 
             usedChunks = List.of();
         }
 
-        TicketResult ticketResult = TicketResult.builder()
-                .ticketId(event.ticketId())
-                .category(classificationResult.category().name())
-                .sentiment(String.valueOf(sentimentResult.sentiment()))
-                .priority(String.valueOf(priorityResult.priority()))
-                .generatedAnswer(generatedAnswer.text())
-                .confidence(BigDecimal.valueOf(confidence))
-                .contextSources(serializeContextSources(usedChunks))
-                .build();
+        TicketResult ticketResult =
+                TicketResult.builder()
+                        .ticketId(event.ticketId())
+                        .category(
+                                classificationResult
+                                        .category()
+                                        .name()
+                        )
+                        .sentiment(
+                                String.valueOf(
+                                        sentimentResult.sentiment()
+                                )
+                        )
+                        .priority(
+                                String.valueOf(
+                                        priorityResult.priority()
+                                )
+                        )
+                        .generatedAnswer(
+                                generatedAnswer.text()
+                        )
+                        .confidence(
+                                BigDecimal.valueOf(confidence)
+                        )
+                        .contextSources(
+                                serializeContextSources(
+                                        usedChunks
+                                )
+                        )
+                        .build();
 
-        TicketResult savedTicketResult = ticketResultService.save(ticketResult);
-        TicketProcessingOutcome outcome = new TicketProcessingOutcome(savedTicketResult,requiresHumanReview );
-        return outcome;
+        TicketResult savedTicketResult =
+                ticketResultService.save(
+                        ticketResult
+                );
+
+        return new TicketProcessingOutcome(
+                savedTicketResult,
+                requiresHumanReview
+        );
     }
 
     private List<UUID> extractSourceArticleIds(
@@ -137,17 +182,20 @@ public class TicketProcessingOrchestrator {
             List<ScoredChunk> chunks
     ) {
 
-        List<ContextSource> sources = chunks.stream()
-                .filter(Objects::nonNull)
-                .map(chunk -> new ContextSource(
-                        chunk.articleId(),
-                        chunk.title(),
-                        chunk.score()
-                ))
-                .toList();
+        List<ContextSource> sources =
+                chunks.stream()
+                        .filter(Objects::nonNull)
+                        .map(chunk -> new ContextSource(
+                                chunk.articleId(),
+                                chunk.title(),
+                                chunk.score()
+                        ))
+                        .toList();
 
         try {
-            return objectMapper.writeValueAsString(sources);
+            return objectMapper.writeValueAsString(
+                    sources
+            );
         } catch (JacksonException exception) {
             throw new IllegalStateException(
                     "Failed to serialize RAG context sources",

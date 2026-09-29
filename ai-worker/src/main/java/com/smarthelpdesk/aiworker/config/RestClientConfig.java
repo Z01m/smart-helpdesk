@@ -1,7 +1,5 @@
 package com.smarthelpdesk.aiworker.config;
 
-
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
@@ -10,16 +8,18 @@ import org.springframework.web.client.RestClient;
 public class RestClientConfig {
 
     @Bean
-    public RestClient aiRestClient(AiClientConfig aiClientConfig){
-        RestClient restClient = RestClient
-                .builder()
+    public RestClient aiRestClient(
+            AiClientConfig aiClientConfig
+    ) {
+        return RestClient.builder()
                 .baseUrl(aiClientConfig.getBaseUrl())
                 .build();
-        return restClient;
     }
 
     @Bean("knowledgeBaseRestClient")
-    public RestClient knowledgeBaseRestClient(KnowledgeBaseProperties properties) {
+    public RestClient knowledgeBaseRestClient(
+            KnowledgeBaseProperties properties
+    ) {
         return RestClient.builder()
                 .baseUrl(properties.getBaseUrl())
                 .defaultHeader(

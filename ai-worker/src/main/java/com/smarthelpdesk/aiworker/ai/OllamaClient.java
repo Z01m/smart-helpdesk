@@ -7,7 +7,6 @@ import com.smarthelpdesk.aiworker.ai.ollama.OllamaEmbeddingResponse;
 import com.smarthelpdesk.aiworker.config.AiClientConfig;
 import com.smarthelpdesk.aiworker.dto.ai.AiResponse;
 import com.smarthelpdesk.aiworker.dto.ai.PromptRequest;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -16,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class OllamaClient implements AiClient{
+public class OllamaClient implements AiClient {
 
     private final RestClient restClient;
     private final AiClientConfig aiProperties;
@@ -31,24 +30,32 @@ public class OllamaClient implements AiClient{
 
     @Override
     public AiResponse chatCompletion(PromptRequest request) {
+
         if (request == null) {
-            throw new NullPointerException("request is null");
+            throw new IllegalArgumentException("request cannot be null");
         }
 
-        OllamaChatRequest.Message systemMessage = new OllamaChatRequest.Message(
-                "system", request.systemPrompt()
-        );
+        OllamaChatRequest.Message systemMessage =
+                new OllamaChatRequest.Message(
+                        "system",
+                        request.systemPrompt()
+                );
 
-        OllamaChatRequest.Message userMessage = new OllamaChatRequest.Message(
-                "user", request.userPrompt()
-        );
+        OllamaChatRequest.Message userMessage =
+                new OllamaChatRequest.Message(
+                        "user",
+                        request.userPrompt()
+                );
 
-        OllamaChatRequest.Options options = new OllamaChatRequest.Options(
-                request.temperature(), request.topP()
-        );
+        OllamaChatRequest.Options options =
+                new OllamaChatRequest.Options(
+                        request.temperature(),
+                        request.topP()
+                );
 
         OllamaChatRequest ollamaRequest =
-                new OllamaChatRequest(request.model(),
+                new OllamaChatRequest(
+                        request.model(),
                         List.of(
                                 systemMessage,
                                 userMessage
@@ -57,24 +64,31 @@ public class OllamaClient implements AiClient{
                         options
                 );
 
-        OllamaChatResponse ollamaResponse = restClient.post()
-                .uri("/api/chat")
-                .body(ollamaRequest)
-                .retrieve()
-                .body(OllamaChatResponse.class);
+        OllamaChatResponse ollamaResponse =
+                restClient.post()
+                        .uri("/api/chat")
+                        .body(ollamaRequest)
+                        .retrieve()
+                        .body(OllamaChatResponse.class);
 
         if (ollamaResponse == null) {
-            throw new IllegalStateException("Ollama returned null response");
+            throw new IllegalStateException(
+                    "Ollama returned null response"
+            );
         }
 
         if (ollamaResponse.message() == null) {
-            throw new IllegalStateException("Ollama response does not contain message");
+            throw new IllegalStateException(
+                    "Ollama response does not contain message"
+            );
         }
 
         String content = ollamaResponse.message().content();
 
         if (content == null || content.isBlank()) {
-            throw new IllegalStateException("Ollama returned empty response");
+            throw new IllegalStateException(
+                    "Ollama returned empty response"
+            );
         }
 
         Map<String, Object> usage = Map.of(
@@ -103,8 +117,7 @@ public class OllamaClient implements AiClient{
                 );
 
         OllamaEmbeddingResponse response =
-                restClient
-                        .post()
+                restClient.post()
                         .uri("/api/embed")
                         .body(request)
                         .retrieve()
