@@ -323,4 +323,12 @@ public class TicketService {
         ticket.setStatus(newStatus);
     }
 
+    @Transactional(readOnly = true)
+    public UUID findOwnerId(UUID ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+
+        return ticket.getUser().getId();
+    }
+
 }
