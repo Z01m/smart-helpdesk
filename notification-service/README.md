@@ -1,35 +1,76 @@
 # Notification Service
 
-Порт 8082. Kafka-события ticket.processed и ticket.status-changed преобразуются в уведомления владельца тикета. GatewayClient принимает ticketId, получает userId из защищённого internal API. NotificationService в одной транзакции сохраняет уведомление и processed_event; повтор события не создаёт дубликат. После трёх повторов ошибочное событие сохраняется в ticket.dlq; неудачная отправка в DLQ не подтверждает событие.
+**Уведомления о результатах обработки обращений и изменении их статусов.**
+
+Сервис связывает события системы с конкретным пользователем: получает событие из Kafka, узнаёт владельца тикета у API Gateway, сохраняет уведомление и доставляет его клиенту. История остаётся доступной через HTTP, даже если пользователь был офлайн.
+
+| Параметр | Значение по умолчанию |
+|---|---|
+| HTTP | `http://localhost:8082` |
+| WebSocket | `ws://localhost:8082/ws/notifications` |
+| База данных | PostgreSQL · `notification` |
+| Зависимости | PostgreSQL, Kafka, API Gateway; SMTP для Email |
+
+## Что делает сервис
+
+- Получает `ticket.processed` и `ticket.status-changed`.
+- Запрашивает `userId` по `ticketId` через внутренний API Gateway.
+- Сохраняет уведомление и идентификатор обработанного события одной транзакцией, предотвращая повторное создание уведомления.
+- Возвращает историю пользователя, поддерживает отметки о доставке и прочтении.
+- Отправляет уведомления по WebSocket и повторяет доставку до подтверждения или прочтения.
+- При включённом Email-канале отправляет письма пользователям, подтвердившим подписку.
 
 ## HTTP API
 
-Все запросы, кроме health и начального WebSocket handshake, требуют access JWT в Authorization: Bearer.
+Для пользовательских запросов нужен `Authorization: Bearer <accessToken>`. Пользователь определяется по JWT; история и действия над уведомлениями доступны только их владельцу.
 
-| Метод | Путь | Результат |
+| Метод | Адрес | Назначение |
 |---|---|---|
-| GET | /api/v1/notifications?unreadOnly=true&page=0&size=20 | Страница с content |
-| PATCH | /api/v1/notifications/{id}/read | Прочитано, 204 |
-| POST | /api/v1/notifications/{id}/delivered | Получено, 204; повтор безопасен |
-| GET | /api/v1/notification-email | enabled, verified, failedMessages |
-| POST | /api/v1/notification-email/subscribe | Запрос подтверждения адреса из JWT, 202 |
-| POST | /api/v1/notification-email/confirm | JSON {"token":"код из письма"}, 204 |
-| DELETE | /api/v1/notification-email | Отписка, 204 |
-| POST | /api/v1/notification-email/retry-failed | Повтор неудачных уведомлений, 202 |
+| GET | `/api/v1/notifications?unreadOnly=true&page=0&size=20` | Страница непрочитанных уведомлений |
+| PATCH | `/api/v1/notifications/{id}/read` | Отметить прочитанным, `204` |
+| POST | `/api/v1/notifications/{id}/delivered` | Подтвердить доставку, `204` |
+| GET | `/api/v1/notification-email` | Получить состояние Email-подписки |
+| POST | `/api/v1/notification-email/subscribe` | Запросить письмо с кодом подтверждения, `202` |
+| POST | `/api/v1/notification-email/confirm` | Подтвердить адрес, `204` |
+| DELETE | `/api/v1/notification-email` | Отписаться, `204` |
+| POST | `/api/v1/notification-email/retry-failed` | Повторить неудачные отправки, `202` |
 
-Пользователь определяется только по JWT. Чужое уведомление даёт 404. Email API существует только при EMAIL_ENABLED=true.
+Для полной истории убери `unreadOnly=true` или передай `false`. Подтверждение доставки можно повторять. Для подтверждения Email передаётся JSON `{"token":"код из письма"}`. Email-endpoints доступны при `EMAIL_ENABLED=true`.
 
-## WebSocket
+## Подключение WebSocket
 
-Подключение к ws://localhost:8082/ws/notifications (в production wss://). URL не должен содержать query-параметров. За 10 секунд отправь STOMP CONNECT с нативным заголовком Authorization: Bearer <accessToken>. Затем подпишись на /user/queue/notifications. SEND и подписки на другие адреса запрещены.
+1. Открой соединение с `ws://localhost:8082/ws/notifications` без query-параметров.
+2. В течение 10 секунд отправь STOMP `CONNECT` с нативным заголовком `Authorization: Bearer <accessToken>`.
+3. Подпишись на `/user/queue/notifications` — личную очередь пользователя.
+4. После получения уведомления подтверди доставку через HTTP `POST /api/v1/notifications/{id}/delivered`. Прочтение отмечается отдельным `PATCH`.
 
-После отображения уведомления отправь HTTP POST /api/v1/notifications/{id}/delivered. Это прикладное подтверждение; STOMP ACK не используется. Прочтение — отдельный PATCH. Клиент объединяет сообщения по id: до подтверждения сервер повторяет доставку примерно каждые 10 секунд. После истечения JWT сокет закрывается, клиент обновляет токен через gateway и переподключается.
+До подтверждения или прочтения сервер повторяет доставку примерно каждые 10 секунд, поэтому клиент объединяет сообщения по `id`. Подтверждение общее для пользователя, включая его другие вкладки. После истечения JWT соединение закрывается: клиент обновляет токен через Gateway и подключается заново. Клиентские STOMP `SEND` и подписки на чужие адреса запрещены.
 
-NotificationDeliveryJob принимает локальный список сессий, читает из общей БД ещё не подтверждённые/непрочитанные уведомления их пользователей и отправляет DTO в конкретную сессию. Несколько экземпляров используют одну notification DB и одну Kafka consumer group. Сессии между узлами не копируются. Подтверждение считается общим для пользователя, не отдельным для каждой вкладки. Старые сообщения всегда доступны через HTTP.
+Несколько экземпляров сервиса могут использовать общую БД и Kafka consumer group. Каждый экземпляр доставляет уведомления своим подключённым сессиям.
 
-## Email и эксплуатация
+## Конфигурация и Email
 
-См. [настройку и гарантии](../docs/security-and-delivery.md). EmailService принимает пользователя и адрес его аккаунта, выдаёт одноразовое подтверждение по почте, затем обрабатывает независимую очередь писем. Адрес и полезная нагрузка зашифрованы AES-GCM; ключ хранится вне БД. В письмах нет текста тикета/ответа AI. Для доставки нужен свой SMTP.
+| Переменная | Значение по умолчанию / назначение |
+|---|---|
+| `NOTIFICATION_SERVICE_PORT` | `8082` |
+| `NOTIFICATION_DB_URL` | `jdbc:postgresql://localhost:5432/notification` |
+| `NOTIFICATION_DB_USERNAME` / `NOTIFICATION_DB_PASSWORD` | Учётные данные БД |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
+| `API_GATEWAY_URL` | `http://localhost:8080` |
+| `INTERNAL_API_KEY` | Ключ внутренних запросов к Gateway |
+| `JWT_SECRET` | Общий с Gateway ключ JWT |
+| `NOTIFICATION_ALLOWED_ORIGINS` | `http://localhost:3000` — разрешённый origin клиента |
+| `EMAIL_ENABLED` | `false` — Email включается отдельно |
 
-Аннотация @Transactional объединяет изменения БД: ошибка откатывает все изменения. @Scheduled периодически запускает доставку. @ConditionalOnProperty создаёт EmailService только при включённом канале. @Profile("prod") включает обязательную проверку production-секретов.
+Для Email нужны `EMAIL_FROM`, `EMAIL_ENCRYPTION_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME` и `SMTP_PASSWORD`. Адрес берётся из JWT аккаунта и подтверждается одноразовым кодом. Адреса и содержимое очереди писем шифруются; тексты обращений и AI-ответов в письма не включаются. Подробности — в [руководстве по доставке](../docs/security-and-delivery.md).
 
+## Запуск
+
+После запуска инфраструктуры и Gateway выполни из корня репозитория:
+
+```shell
+mvn -pl notification-service -am package -DskipTests
+java -jar notification-service/target/notification-service-1.0.0-SNAPSHOT.jar
+```
+
+[Обзор и общий запуск](../README.md)

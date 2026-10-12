@@ -1,66 +1,151 @@
 # Smart Helpdesk
 
-Java 21, Spring Boot 4.1, Maven multi-module, PostgreSQL/pgvector, Kafka и Ollama.
+**Система поддержки пользователей с автоматической обработкой обращений и базой знаний.**
 
-| Модуль | Порт | Задача |
+Пользователь описывает проблему, а Smart Helpdesk определяет категорию и приоритет обращения, находит подходящие инструкции и готовит ответ с помощью локальной AI-модели. Если в базе знаний нет достаточно подходящей информации, обращение передаётся оператору. О результате пользователь узнаёт через уведомления.
+
+Проект состоит из четырёх самостоятельных сервисов и общей библиотеки событий. Каждый сервис отвечает за свою часть работы и хранит данные в отдельной базе PostgreSQL. События между сервисами передаются через Kafka, а внутренние запросы выполняются по HTTP.
+
+## Модули проекта
+
+| Модуль | Для чего нужен | Адрес по умолчанию |
 |---|---|---|
-| api-gateway | 8080 | Пользователи, JWT, тикеты, outbox и internal API владельца |
-| ai-worker | 8081 | Обработка обращения, поиск RAG и генерация ответа |
-| notification-service | 8082 | История уведомлений и WebSocket |
-| knowledge-base-service | 8083 | Статьи, категории, полнотекстовый и векторный поиск |
-| common | — | Kafka-контракты |
+| [API Gateway](api-gateway/README.md) | Регистрация, вход, управление обращениями и сохранение результатов AI | `http://localhost:8080` |
+| [AI Worker](ai-worker/README.md) | Анализ обращений, поиск контекста и генерация ответов | `http://localhost:8081` |
+| [Notification Service](notification-service/README.md) | История уведомлений, доставка по WebSocket и дополнительный Email-канал | `http://localhost:8082` |
+| [Knowledge Base Service](knowledge-base-service/README.md) | Статьи, категории и поиск информации для пользователей и AI | `http://localhost:8083` |
+| [Common](common/README.md) | Общие форматы событий Kafka | Библиотека, отдельного порта нет |
 
-Описание новых сервисов: [уведомления](notification-service/README.md), [база знаний](knowledge-base-service/README.md).
+Клиент обращается к API Gateway для работы с аккаунтом и тикетами, к Knowledge Base Service — для работы со статьями, к Notification Service — для получения уведомлений. AI Worker получает задания из Kafka.
+
+## Как обрабатывается обращение
+
+```mermaid
+flowchart TD
+    User[Пользователь] -->|Создаёт обращение| Gateway[API Gateway · 8080]
+    Gateway -->|ticket.created через Kafka| Worker[AI Worker · 8081]
+    Worker -->|Поиск подходящих фрагментов| KB[Knowledge Base Service · 8083]
+    KB -->|Создание embeddings| Ollama[Ollama · 11434]
+    Worker -->|Анализ и генерация ответа| Ollama
+    Worker -->|ticket.processed через Kafka| Gateway
+    Worker -->|ticket.processed через Kafka| Notifications[Notification Service · 8082]
+    Gateway -->|ticket.status-changed через Kafka| Notifications
+    Notifications -->|Запрос владельца обращения| Gateway
+    Notifications -->|WebSocket / Email| User
+```
+
+1. API Gateway сохраняет обращение и событие для отправки в Kafka.
+2. AI Worker определяет категорию, эмоциональную окраску и приоритет сообщения.
+3. Worker ищет в базе знаний фрагменты, близкие по смыслу к вопросу. Такой подход называется **RAG**: модель получает справочный материал перед подготовкой ответа.
+4. При достаточной релевантности контекста модель формирует ответ. Иначе результат содержит признак необходимости участия оператора.
+5. Gateway сохраняет результат в тикете, а Notification Service создаёт уведомление его владельцу.
+
+Исходящие события сохраняются в БД вместе с изменениями — это паттерн **Transactional Outbox**. Отдельный процесс отправляет их в Kafka и повторяет попытку при временном сбое. Получатели учитывают идентификаторы уже обработанных событий, чтобы повторная доставка не создавала дубликаты данных.
+
+## Технологии
+
+| Технология | Роль в проекте |
+|---|---|
+| Java 21, Spring Boot 4.1 | Приложения и бизнес-логика |
+| Maven | Общая сборка модулей |
+| Spring Security, JWT | Аутентификация и разграничение доступа |
+| PostgreSQL 16, Flyway | Хранение данных и миграции схемы |
+| pgvector | Хранение embeddings и поиск по смыслу |
+| Apache Kafka | Асинхронный обмен событиями |
+| Ollama | Локальная генерация ответов и embeddings |
+| WebSocket, STOMP | Доставка уведомлений подключённому клиенту |
+| Docker Compose | Локальная инфраструктура |
+
+## Порты и инфраструктура
+
+| Компонент | Порт на компьютере | Назначение |
+|---|---:|---|
+| API Gateway | 8080 | HTTP API аккаунтов и обращений |
+| AI Worker | 8081 | Служебный HTTP-интерфейс |
+| Notification Service | 8082 | HTTP API и WebSocket |
+| Knowledge Base Service | 8083 | HTTP API статей и внутренний поиск |
+| PostgreSQL | 5432 | Базы `gateway`, `ai_worker`, `notification`, `knowledge_base` |
+| Kafka | 9092 | Подключение приложений с компьютера |
+| ZooKeeper | 2181 | Координация Kafka в локальном Compose |
+| Kafka UI | 8090 | Веб-интерфейс Kafka |
+| Ollama | 11434 | HTTP API локальных моделей |
+
+Внутри сети Docker Kafka доступна по адресу `kafka:29092`. Сервисы и опубликованные порты Compose по умолчанию привязаны к `127.0.0.1`.
 
 ## Локальный запуск
 
-1. Запусти Docker Desktop. В `.env` в корне проекта должен быть `POSTGRES_PASSWORD`, соответствующий паролям БД в приложениях (локальный default — `helpdesk`). Существующий `.env` не изменён.
-2. Подними инфраструктуру: `docker compose up -d`. Создаются Kafka-топики, а на **новом** PostgreSQL-томе — БД `gateway`, `ai_worker`, `notification`, `knowledge_base`. Не удаляй существующий том ради создания недостающей БД.
-3. Запусти Ollama. Загрузи `nomic-embed-text` и модель генерации, указанную в ai-worker (`qwen3:4b` по умолчанию).
-4. Во всех соответствующих процессах задай одинаковые `JWT_SECRET` и `INTERNAL_API_KEY`. В KB и ai-worker используй одинаковые `AI_BASE_URL` и `AI_EMBEDDING_MODEL`. Значения по умолчанию подходят только для локальной разработки.
-5. Собери проект: `mvn clean package -DskipTests`. Запусти каждый сервис отдельным процессом из IDE или через `java -jar <module>/target/<module>-1.0.0-SNAPSHOT.jar`.
-6. Создай статьи через API KB с токеном ADMIN. Затем обычный пользователь может создать тикет через gateway. ai-worker найдёт контекст, а notification-service сохранит уведомление и отправит его подключённому клиенту.
+Понадобятся **JDK 21**, **Maven**, **Docker Compose** и **Ollama**.
 
-`INTERNAL_API_KEY` передают только сервисы, не браузер. Новый internal endpoint gateway — `GET /internal/v1/tickets/{ticketId}/owner`. Он возвращает `ticketId` и `userId` и защищён отдельной цепочкой Spring Security.
+### 1. Поднять инфраструктуру
 
-## Проверки
+В корневом `.env` укажи `POSTGRES_PASSWORD`. Для стандартной локальной конфигурации приложений используется пароль `helpdesk`; если задаёшь другой, передай его также всем сервисам через `SPRING_DATASOURCE_PASSWORD`.
 
-Компиляция всех модулей: `mvn clean compile`.
-
-Полный стандартный набор тестов и отчёты покрытия:
-
-```powershell
-mvn clean verify
+```shell
+docker compose up -d
 ```
 
-Нужны Java 21, Maven и работающий Docker. PostgreSQL/pgvector создаются в изолированных контейнерах; Kafka-тест поднимает настоящий встроенный broker. Рабочие БД не используются. Если Docker недоступен, сборка падает, а не показывает ложный успех с пропущенными интеграционными тестами. Настоящие SMTP/Ollama для стандартного набора не нужны: SMTP работает на loopback без пересылки, внешние HTTP-ответы контролируются тестами.
+Compose запускает PostgreSQL с pgvector, Kafka, ZooKeeper и Kafka UI. Базы данных создаются автоматически при инициализации нового PostgreSQL-тома. Если том уже существует, недостающие базы нужно создать отдельно, сохранив имеющиеся данные. Приложения и Ollama запускаются отдельно.
 
-Дополнительная проверка установленной Ollama (нужна модель qwen3:4b либо AI_MODEL):
+### 2. Подготовить модели
 
-```powershell
-mvn clean verify -Plive-ai
+При работающей Ollama загрузи модели:
+
+```shell
+ollama pull qwen3:4b
+ollama pull nomic-embed-text
 ```
 
-Профиль live-ai включает существующий ClassificationServiceOllamaIT через Failsafe; его БД также временная. Обычные тесты при этом тоже запускаются. Отчёты — `<module>/target/surefire-reports`, `ai-worker/target/failsafe-reports`, покрытие — `<module>/target/site/jacoco/index.html`. Проверка verify требует минимум 80% покрытия строк каждого сервисного модуля; это не доказательство отсутствия ошибок. Ветки и непокрытый код видны в HTML-отчётах.
+`qwen3:4b` используется для анализа и генерации текста, `nomic-embed-text` — для представления текста числовыми векторами. AI Worker и Knowledge Base Service должны использовать одну и ту же embedding-модель.
 
-Сценарии, найденные ошибки и измерения: [отчёт о тестировании](docs/testing-report.md).
+### 3. Настроить окружение
 
-## Принятые упрощения
+Настройки передаются через переменные окружения процесса или Run Configuration в IDE. Корневой `.env` читает Docker Compose; Java-приложения автоматически его не загружают.
 
-За основу взято `smart-helpdesk-spec.md` версии 1.0 и существующие контракты проекта. Сохранены Spring Boot 4.1 и пакеты работающих модулей; переход на Spring Boot 3 из примера ТЗ не выполнялся.
+| Переменная | Где используется | Назначение |
+|---|---|---|
+| `JWT_SECRET` | Gateway, Notifications, Knowledge Base | Общий ключ подписи и проверки access-токенов |
+| `INTERNAL_API_KEY` | Все сервисы | Общий ключ внутренних HTTP-запросов |
+| `AI_BASE_URL` | Worker, Knowledge Base | Адрес Ollama, по умолчанию `http://localhost:11434` |
+| `AI_EMBEDDING_MODEL` | Worker, Knowledge Base | Embedding-модель, по умолчанию `nomic-embed-text` |
+| `AI_MODEL` | Worker | Модель генерации, по умолчанию `qwen3:4b` |
 
-Email с подтверждением адреса и несколько экземпляров notification-service поддерживаются. Доставка WebSocket повторяется до подтверждения клиента. Настройка, контракт клиента и границы гарантий описаны в [security-and-delivery.md](docs/security-and-delivery.md).
+Локальные значения по умолчанию позволяют запустить сервисы вместе. Для развёртывания используется профиль `prod` с внешними секретами и настройками сети: [руководство по конфигурации и доставке](docs/security-and-delivery.md).
 
-Redis не нужен для выбранной доставки через общую БД. OpenAPI UI, общий HTTP-прокси, массовая рассылка операторам и автоматическое развёртывание не добавлены. Таймауты внешних запросов ограничены; полноценного circuit breaker пока нет. Это отдельные возможности, а не снятые проверки безопасности.
+### 4. Собрать и запустить приложения
 
-Сохранены существующие Java/API-значения статусов ANSWED и WAITIND_OPERATOR и приоритет NORMAL. Миграция V8 согласует с ними PostgreSQL и позволяет хранить длинные ответы AI. Исправлен возврат generatedAnswer через API. Изменения операторского статуса публикуются outbox раз в 60 секунд.
+Из корня репозитория:
 
-## Полный локальный сценарий
-
-После `mvn package -DskipTests`, при запущенных Docker Desktop и Ollama с моделями qwen3:4b и nomic-embed-text:
-
-```powershell
-python scripts/e2e_local.py
+```shell
+mvn clean package -DskipTests
 ```
 
-Скрипт создаёт отдельные временные PostgreSQL/Kafka и случайные тестовые секреты, запускает четыре JAR, индексирует статью, проверяет RAG, создаёт пользователя/тикет, ожидает ответ AI и сохранённое уведомление. Затем удаляет тестовую статью и проверяет передачу нового обращения оператору при пустой базе знаний. В конце удаляет только свои контейнеры/тома; отчёт находится в target/e2e. Письма наружу не отправляются. Тест SMTP и WebSocket выполняется отдельно в Maven.
+Каждую команду запуска выполни в отдельном терминале:
+
+```shell
+java -jar api-gateway/target/api-gateway-1.0.0-SNAPSHOT.jar
+java -jar knowledge-base-service/target/knowledge-base-service-1.0.0-SNAPSHOT.jar
+java -jar notification-service/target/notification-service-1.0.0-SNAPSHOT.jar
+java -jar ai-worker/target/ai-worker-1.0.0-SNAPSHOT.jar
+```
+
+В IDE можно запустить соответствующие Spring Boot application-классы. Миграции Flyway применяются при старте каждого сервиса.
+
+### 5. Начать работу
+
+Зарегистрируй пользователя через Gateway и получи access-токен. Наполни базу знаний статьями с помощью аккаунта с ролью `ADMIN`, затем создай обращение через `POST /api/v1/tickets`. Результат обработки появится в тикете, а уведомление — в истории пользователя и его WebSocket-подписке.
+
+## Структура репозитория
+
+```text
+smart-helpdesk/
+├── api-gateway/             Аккаунты и обращения
+├── ai-worker/               AI-обработка и RAG
+├── notification-service/    Уведомления
+├── knowledge-base-service/  База знаний
+├── common/                  Контракты событий
+├── docker/                  Инициализация инфраструктуры
+├── docs/                    Техническая документация
+├── scripts/                 Вспомогательные сценарии
+├── docker-compose.yml       Локальная инфраструктура
+└── pom.xml                  Родительская сборка Maven
+```
