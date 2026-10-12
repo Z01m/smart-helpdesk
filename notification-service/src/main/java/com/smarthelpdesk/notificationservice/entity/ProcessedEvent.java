@@ -7,7 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -20,6 +20,6 @@ public class ProcessedEvent {
 
     @Column(name = "processed_at", nullable = false, updatable = false)
     @CreationTimestamp
-    private LocalDateTime processedAt;
+    private Instant processedAt;
 
 }

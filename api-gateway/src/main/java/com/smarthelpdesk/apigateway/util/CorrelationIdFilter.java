@@ -15,10 +15,11 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("X-Correlation-Id");
-        if (header == null || header.isBlank()) {
+        if (header == null || !header.matches("[A-Za-z0-9._-]{1,64}")) {
             header = UUID.randomUUID().toString();
         }
         MDC.put("correlationId", header);
+        response.setHeader("X-Correlation-Id", header);
         try {
             filterChain.doFilter(request, response);
         }finally {

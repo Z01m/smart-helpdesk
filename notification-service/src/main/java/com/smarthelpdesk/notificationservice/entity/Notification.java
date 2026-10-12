@@ -31,10 +31,10 @@ public class Notification {
     @Enumerated(EnumType.STRING)
     private NotificationType type;
 
-    @Column(name = "content")
+    @Column(name = "content", nullable = false, columnDefinition = "text")
     private String content;
 
-    @Column(name = "read")
+    @Column(name = "is_read", nullable = false)
     private boolean read;
 
 

@@ -51,6 +51,7 @@ public class RefreshTokenService {
 
     private String hashToken(String rawTocken) {
 
+        if (rawTocken == null || rawTocken.isBlank()) throw new InvalidRefreshTokenException("token is required");
         try{
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
@@ -77,28 +78,38 @@ public class RefreshTokenService {
                 .findByTokenHash(hashToken(rawToken))
                 .orElseThrow(() -> new InvalidRefreshTokenException("token not found"));
 
+        return requireValid(refreshToken);
+    }
+
+    private RefreshToken requireValid(RefreshToken refreshToken) {
         if(Boolean.TRUE.equals(refreshToken.getRevoked())){
             throw new InvalidRefreshTokenException("token is revoked");
         }
-        if(refreshToken.getExpiresAt().isBefore(Instant.now())){
+        if(!refreshToken.getExpiresAt().isAfter(Instant.now())){
             throw new InvalidRefreshTokenException("token is expired");
         }
         return refreshToken;
     }
     @Transactional
     public void revoke(String rawToken){
-        RefreshToken refreshToken = validate(rawToken);
+        RefreshToken refreshToken = lockValid(rawToken);
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
     }
     @Transactional
     public CreatedRefreshToken rotateToken(String oldRawToken){
-        RefreshToken refreshToken = validate(oldRawToken);
+        RefreshToken refreshToken = lockValid(oldRawToken);
         User user = refreshToken.getUser();
-        revoke(oldRawToken);
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
         return create(user);
     }
 
 
 
+    private RefreshToken lockValid(String rawToken) {
+        // Row lock serializes rotation and logout across all gateway instances.
+        return requireValid(refreshTokenRepository.findForRotation(hashToken(rawToken))
+                .orElseThrow(() -> new InvalidRefreshTokenException("token not found")));
+    }
 }

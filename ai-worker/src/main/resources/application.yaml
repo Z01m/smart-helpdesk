@@ -30,6 +30,9 @@ spring:
 
       enable-auto-commit: false
       auto-offset-reset: earliest
+      max-poll-records: 1
+      properties:
+        max.poll.interval.ms: 900000
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -43,10 +46,11 @@ spring:
         max.in.flight.requests.per.connection: 5
 
     listener:
-      ack-mode: manual
+      ack-mode: manual_immediate
       concurrency: ${AI_WORKER_KAFKA_CONCURRENCY:3}
 
 server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${AI_WORKER_PORT:8081}
 
 management:

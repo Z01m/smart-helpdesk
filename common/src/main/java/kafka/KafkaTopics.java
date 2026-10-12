@@ -4,7 +4,7 @@ public enum KafkaTopics {
 
     TICKET_CREATED("ticket.created"),
     TICKET_PROCESSED("ticket.processed"),
-    TICKET_STATUS_CHANGED("ticket.status.changed"),
+    TICKET_STATUS_CHANGED("ticket.status-changed"),
     TICKET_ASSIGNED("ticket.assigned"),
     TICKET_DLQ("ticket.dlq");
 

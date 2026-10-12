@@ -24,10 +24,10 @@ public class TicketProcessedProducer {
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public void send(
+    public ProducerRecord<String,String> record(
             TicketResult result,
             boolean requiresHumanReview,
-            String correlationId
+            String correlationId, UUID eventId
     ) {
 
         if (result == null) {
@@ -58,7 +58,7 @@ public class TicketProcessedProducer {
 
         EventEnvelope<TicketProcessedEvent> envelope =
                 EventEnvelope.<TicketProcessedEvent>builder()
-                        .eventId(UUID.randomUUID())
+                        .eventId(eventId)
                         .eventType(KafkaTopics.TICKET_PROCESSED.name())
                         .occurredAt(result.getCreatedAt())
                         .correlationId(actualCorrelationId)
@@ -80,13 +80,11 @@ public class TicketProcessedProducer {
                 actualCorrelationId.getBytes(StandardCharsets.UTF_8)
         );
 
-        kafkaTemplate.send(record).join();
+        return record;
+    }
 
-        log.info(
-                "Sent ticket.processed event {} for ticket {}",
-                envelope.getEventId(),
-                result.getTicketId()
-        );
+    public void send(TicketResult result, boolean humanReview, String correlationId) {
+        kafkaTemplate.send(record(result,humanReview,correlationId,UUID.randomUUID())).join();
     }
 
     private List<TicketProcessedEvent.ContextSource>

@@ -169,6 +169,13 @@ public class TicketService {
 
         ticketStatusHistoryRepository.save(history);
         ticket.setStatus(newStatus);
+        var event = new kafka.event.TicketStatusChangedEvent(ticketId, oldStatus.name(), newStatus.name(),
+                currentUser.getId(), Instant.now());
+        var envelope = EventEnvelope.<kafka.event.TicketStatusChangedEvent>builder()
+                .eventId(UUID.randomUUID()).eventType(KafkaTopics.TICKET_STATUS_CHANGED.name())
+                .occurredAt(Instant.now()).correlationId(MDC.get("correlationId")).payload(event).build();
+        outboxPublisherService.saveEvent("Ticket", ticketId, KafkaTopics.TICKET_STATUS_CHANGED.name(),
+                MDC.get("correlationId"), envelope);
         return ticketRepository.save(ticket);
     }
 

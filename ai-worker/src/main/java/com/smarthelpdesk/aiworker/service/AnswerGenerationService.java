@@ -46,7 +46,7 @@ public class AnswerGenerationService {
             throw new IllegalArgumentException("priorityResult must not be null");
         }
 
-        if (confidence < 0.0 || confidence > 1.0) {
+        if (!Double.isFinite(confidence) || confidence < 0.0 || confidence > 1.0) {
             throw new IllegalArgumentException("confidence must be between 0.0 and 1.0");
         }
 

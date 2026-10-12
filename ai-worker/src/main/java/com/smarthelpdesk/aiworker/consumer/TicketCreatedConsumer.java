@@ -27,9 +27,7 @@ import java.util.UUID;
 public class TicketCreatedConsumer {
 
     private final ObjectMapper objectMapper;
-    private final ProcessedEventRepository processedEventRepository;
-    private final TicketProcessingOrchestrator ticketProcessingOrchestrator;
-    private final TicketProcessedProducer ticketProcessedProducer;
+    private final com.smarthelpdesk.aiworker.service.TicketEventProcessingService processing;
 
     @KafkaListener(
             topics = "ticket.created",
@@ -65,35 +63,8 @@ public class TicketCreatedConsumer {
 
             UUID eventId = envelope.getEventId();
 
-            if (processedEventRepository.existsByEventId(eventId)) {
-
-                log.info(
-                        "Event {} already processed, skipping",
-                        eventId
-                );
-
-                acknowledgment.acknowledge();
-                return;
-            }
-
             TicketCreatedEvent payload = envelope.getPayload();
-
-            TicketProcessingOutcome outcome =
-                    ticketProcessingOrchestrator.process(payload);
-
-            ticketProcessedProducer.send(
-                    outcome.ticketResult(),
-                    outcome.requiresHumanReview(),
-                    correlationId
-            );
-
-            ProcessedEvent processedEvent =
-                    ProcessedEvent.builder()
-                            .eventId(eventId)
-                            .processedAt(Instant.now())
-                            .build();
-
-            processedEventRepository.save(processedEvent);
+            processing.process(eventId, payload, correlationId);
 
             acknowledgment.acknowledge();
 

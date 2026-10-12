@@ -32,6 +32,8 @@ public class JwtTokenProvider {
         this.accessTokenExpiration = accessTokenExpiration;
     }
 
+    public long getAccessTokenExpiration() { return accessTokenExpiration; }
+
     public String generateAccessToken(UUID userId, String email, String role) {
         return generateToken(userId,email,role,accessTokenExpiration);
     }
@@ -56,7 +58,12 @@ public class JwtTokenProvider {
 
             String tokenType = claims.get("type", String.class);
 
-            return "access".equals(tokenType);
+            UUID.fromString(claims.getSubject());
+            String role = claims.get("role", String.class);
+            String email = claims.get("email", String.class);
+            return "access".equals(tokenType) && claims.getExpiration() != null
+                    && claims.getExpiration().after(new Date()) && email != null && !email.isBlank()
+                    && java.util.Set.of("CUSTOMER", "OPERATOR", "ADMIN").contains(role == null ? "" : role);
         } catch (Exception e) {
             return false;
         }

@@ -22,7 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-class TicketServiceIntegrationTest {
+class TicketServiceIntegrationTest extends com.smarthelpdesk.apigateway.support.DatabaseTestSupport {
 
     @Autowired
     private TicketService ticketService;
@@ -115,6 +115,8 @@ class TicketServiceIntegrationTest {
 
         assertThat(payload.get("eventId").asText())
                 .isNotBlank();
+
+        payload = payload.get("payload");
 
         assertThat(payload.get("ticketId").asText())
                 .isEqualTo(createdTicket.getId().toString());

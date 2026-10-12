@@ -42,9 +42,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String email = jwtTokenProvider.getEmail(token);
 
-            CustomUserDetails customUserDetails =
-                    (CustomUserDetails) customUserDetailsService
-                            .loadUserByUsername(email);
+            CustomUserDetails customUserDetails;
+            try {
+                customUserDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(email);
+                if (!customUserDetails.getId().equals(jwtTokenProvider.getUserId(token))) {
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    return;
+                }
+            } catch (org.springframework.security.core.AuthenticationException ex) {
+                SecurityContextHolder.clearContext();
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

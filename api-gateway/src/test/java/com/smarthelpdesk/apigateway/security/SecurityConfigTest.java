@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class SecurityConfigTest {
+class SecurityConfigTest extends com.smarthelpdesk.apigateway.support.DatabaseTestSupport {
 
     @Autowired
     private MockMvc mockMvc;

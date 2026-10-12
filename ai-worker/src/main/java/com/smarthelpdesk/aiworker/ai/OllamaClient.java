@@ -77,6 +77,8 @@ public class OllamaClient implements AiClient {
             );
         }
 
+        if (!ollamaResponse.done()) throw new IllegalStateException("Ollama returned an incomplete response");
+
         if (ollamaResponse.message() == null) {
             throw new IllegalStateException(
                     "Ollama response does not contain message"
@@ -149,7 +151,10 @@ public class OllamaClient implements AiClient {
         float[] result = new float[embedding.size()];
 
         for (int i = 0; i < embedding.size(); i++) {
-            result[i] = embedding.get(i).floatValue();
+            Double value = embedding.get(i);
+            if (value == null || !Double.isFinite(value) || !Float.isFinite(value.floatValue()))
+                throw new IllegalStateException("Ollama returned a non-finite embedding value");
+            result[i] = value.floatValue();
         }
 
         return result;

@@ -30,13 +30,15 @@ public class OutboxEventPoller {
         log.info("Found {} unpublished outbox events", outboxEvents.size());
 
         for (OutboxEvent outboxEvent : outboxEvents) {
-            if(!KafkaTopics.TICKET_CREATED.name().equals(outboxEvent.getEventType()))
+            if(!KafkaTopics.TICKET_CREATED.name().equals(outboxEvent.getEventType())
+                    && !KafkaTopics.TICKET_STATUS_CHANGED.name().equals(outboxEvent.getEventType()))
             {
                 log.warn("Unsupported outbox event type: {}", outboxEvent.getEventType());
                 continue;
             }
 
             CompletableFuture<SendResult<String,String>> future = ticketEventProducer.send(
+                    KafkaTopics.valueOf(outboxEvent.getEventType()),
                     outboxEvent.getAggregateId(),
                     outboxEvent.getCorrelationId(),
                     outboxEvent.getPayload());

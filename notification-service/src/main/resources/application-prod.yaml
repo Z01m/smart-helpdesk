@@ -1,0 +1,21 @@
+jwt:
+  secret: ${JWT_SECRET}
+internal:
+  api-key: ${INTERNAL_API_KEY}
+api-gateway:
+  api-key: ${INTERNAL_API_KEY}
+notification:
+  websocket:
+    allowed-origins: ${NOTIFICATION_ALLOWED_ORIGINS}
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  mail:
+    properties:
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.ssl.checkserveridentity: true

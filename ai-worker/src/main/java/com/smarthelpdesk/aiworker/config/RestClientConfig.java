@@ -11,7 +11,11 @@ public class RestClientConfig {
     public RestClient aiRestClient(
             AiClientConfig aiClientConfig
     ) {
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(120000);
         return RestClient.builder()
+                .requestFactory(factory)
                 .baseUrl(aiClientConfig.getBaseUrl())
                 .build();
     }
@@ -20,7 +24,11 @@ public class RestClientConfig {
     public RestClient knowledgeBaseRestClient(
             KnowledgeBaseProperties properties
     ) {
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(10000);
         return RestClient.builder()
+                .requestFactory(factory)
                 .baseUrl(properties.getBaseUrl())
                 .defaultHeader(
                         "X-Internal-Api-Key",

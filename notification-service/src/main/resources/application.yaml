@@ -1,4 +1,17 @@
 spring:
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      mail.smtp.starttls.required: ${SMTP_STARTTLS:true}
+      mail.smtp.ssl.checkserveridentity: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   application:
     name: notification-service
 
@@ -31,16 +44,27 @@ spring:
       enable-auto-commit: false
       auto-offset-reset: earliest
 
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+
     listener:
-      ack-mode: manual
+      ack-mode: manual_immediate
       concurrency: ${NOTIFICATION_KAFKA_CONCURRENCY:3}
 
 
 server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${NOTIFICATION_SERVICE_PORT:8082}
 
 
 management:
+  health:
+    mail:
+      enabled: ${EMAIL_ENABLED:false}
   endpoints:
     web:
       exposure:
@@ -55,3 +79,13 @@ logging:
 api-gateway:
   base-url: ${API_GATEWAY_URL:http://localhost:8080}
   api-key: ${INTERNAL_API_KEY:dev-internal-key}
+
+jwt:
+  secret: ${JWT_SECRET:your-very-long-secret-key-for-local-development-123456789}
+notification:
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    from: ${EMAIL_FROM:}
+    encryption-key: ${EMAIL_ENCRYPTION_KEY:}
+  websocket:
+    allowed-origins: ${NOTIFICATION_ALLOWED_ORIGINS:http://localhost:3000}

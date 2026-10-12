@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -31,7 +31,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
 
     ports:
-      - "2181:2181"
+      - "127.0.0.1:2181:2181"
 
 
   kafka:
@@ -42,7 +42,7 @@ services:
       - zookeeper
 
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
 
     environment:
       KAFKA_BROKER_ID: 1
@@ -147,7 +147,7 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
     ports:
-      - "8090:8080"
+      - "127.0.0.1:8090:8080"
 
 
 volumes:

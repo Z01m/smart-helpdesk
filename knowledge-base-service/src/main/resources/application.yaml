@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: knowledge-base-service
+  datasource:
+    url: ${KNOWLEDGE_BASE_DB_URL:jdbc:postgresql://localhost:5432/knowledge_base}
+    username: ${KNOWLEDGE_BASE_DB_USERNAME:helpdesk}
+    password: ${KNOWLEDGE_BASE_DB_PASSWORD:helpdesk}
+  flyway:
+    enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${KNOWLEDGE_BASE_PORT:8083}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+internal:
+  api-key: ${INTERNAL_API_KEY:dev-internal-key}
+jwt:
+  secret: ${JWT_SECRET:your-very-long-secret-key-for-local-development-123456789}
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:11434}
+  embedding-model: ${AI_EMBEDDING_MODEL:nomic-embed-text}

@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class ClassificationServiceOllamaIT {
+class ClassificationServiceOllamaIT extends com.smarthelpdesk.aiworker.support.DatabaseTestSupport {
 
     @Autowired
     private ClassificationService classificationService;

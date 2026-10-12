@@ -40,7 +40,7 @@ public class AiResponseParser {
                 );
             }
 
-            if (payload.confidence() < 0.0
+            if (!Double.isFinite(payload.confidence()) || payload.confidence() < 0.0
                     || payload.confidence() > 1.0) {
 
                 throw new IllegalArgumentException(
@@ -63,8 +63,7 @@ public class AiResponseParser {
         } catch (Exception exception) {
 
             throw new IllegalArgumentException(
-                    "Cannot parse AI classification response: "
-                            + rawResponse,
+                    "Cannot parse AI classification response",
                     exception
             );
         }
@@ -94,7 +93,7 @@ public class AiResponseParser {
                 );
             }
 
-            if (payload.score() < -1.0
+            if (!Double.isFinite(payload.score()) || payload.score() < -1.0
                     || payload.score() > 1.0) {
 
                 throw new IllegalArgumentException(
@@ -117,8 +116,7 @@ public class AiResponseParser {
         } catch (Exception exception) {
 
             throw new IllegalArgumentException(
-                    "Cannot parse AI sentiment response: "
-                            + rawResponse,
+                    "Cannot parse AI sentiment response",
                     exception
             );
         }

@@ -60,7 +60,7 @@ public class AuthService {
         RefreshTokenService.CreatedRefreshToken createdRefreshToken = refreshTokenService.create(user);
         String refreshToken = createdRefreshToken.rawToken();
 
-        long expiresIn = 900000L;
+        long expiresIn = jwtTokenProvider.getAccessTokenExpiration();
 
         return new AuthResponse(
                 accessToken,
@@ -82,7 +82,7 @@ public class AuthService {
         return new AuthResponse(
                 accessToken,
                 newRefreshToken.rawToken(),
-                900000L
+                jwtTokenProvider.getAccessTokenExpiration()
         );
     }
     @Transactional

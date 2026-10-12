@@ -35,7 +35,7 @@ public class GatewayClient {
                         .retrieve()
                         .body(TicketOwnerResponse.class);
 
-        if (response == null) {
+        if (response == null || response.userId() == null || !ticketId.equals(response.ticketId())) {
             throw new IllegalStateException(
                     "API Gateway returned null response"
             );

@@ -2,9 +2,9 @@ package com.smarthelpdesk.apigateway.kafka;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
-import com.smarthelpdesk.apigateway.entity.ProcessedEvent;
-import com.smarthelpdesk.apigateway.repository.ProcessedEventRepository;
-import com.smarthelpdesk.apigateway.service.TicketService;
+
+
+import com.smarthelpdesk.apigateway.service.ProcessedTicketService;
 import kafka.event.EventEnvelope;
 import kafka.event.TicketProcessedEvent;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+
 
 @Component
 @RequiredArgsConstructor
@@ -24,8 +24,7 @@ import java.time.Instant;
 public class TicketProcessedConsumer {
 
     private final ObjectMapper objectMapper;
-    private final ProcessedEventRepository processedEventRepository;
-    private final TicketService ticketService;
+    private final ProcessedTicketService processedTicketService;
 
     @KafkaListener(
             topics = "ticket.processed",
@@ -55,33 +54,8 @@ public class TicketProcessedConsumer {
                             }
                     );
 
-            if (processedEventRepository.existsByEventId(envelope.getEventId())) {
-                log.info(
-                        "Event {} already processed, skipping",
-                        envelope.getEventId()
-                );
-
-                acknowledgment.acknowledge();
-                return;
-            }
-
             TicketProcessedEvent payload = envelope.getPayload();
-
-            ticketService.applyAiResult(
-                    payload.ticketId(),
-                    payload.category(),
-                    payload.priority(),
-                    payload.sentiment(),
-                    payload.generatedAnswer(),
-                    payload.requiresHumanReview()
-            );
-
-            ProcessedEvent processedEvent = ProcessedEvent.builder()
-                    .eventId(envelope.getEventId())
-                    .processedAt(Instant.now())
-                    .build();
-
-            processedEventRepository.save(processedEvent);
+            processedTicketService.process(envelope.getEventId(), payload);
 
             acknowledgment.acknowledge();
 

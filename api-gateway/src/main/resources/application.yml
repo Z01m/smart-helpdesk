@@ -33,9 +33,10 @@ spring:
       auto-offset-reset: earliest
 
     listener:
-      ack-mode: manual
+      ack-mode: manual_immediate
 
 server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
   port: 8080
 
 management:
@@ -49,6 +50,8 @@ logging:
     org.hibernate.SQL: debug
 
 jwt:
-  secret: "your-very-long-secret-key-for-local-development-123456789"
+  secret: ${JWT_SECRET:your-very-long-secret-key-for-local-development-123456789}
   access-token-expiration: 900000
   refresh-token-expiration: 2592000000
+internal:
+  api-key: ${INTERNAL_API_KEY:dev-internal-key}

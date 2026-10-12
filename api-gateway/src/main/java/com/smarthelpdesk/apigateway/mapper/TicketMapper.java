@@ -13,6 +13,6 @@ public interface TicketMapper {
 
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "operatorId", source = "operator.id")
-    @Mapping(target = "generatedAnswer", ignore = true) // появится на этапе AI-worker
+    @Mapping(target = "generatedAnswer", source = "answer")
     TicketResponse toResponse(Ticket ticket);
 }

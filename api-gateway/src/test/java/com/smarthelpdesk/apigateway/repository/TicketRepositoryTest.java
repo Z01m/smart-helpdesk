@@ -18,7 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties="spring.kafka.listener.auto-startup=false")
 @Testcontainers
 public class TicketRepositoryTest {
 

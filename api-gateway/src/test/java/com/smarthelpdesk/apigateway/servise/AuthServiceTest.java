@@ -50,6 +50,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(jwtTokenProvider.getAccessTokenExpiration()).thenReturn(900000L);
         userId = UUID.randomUUID();
 
         user = new User();

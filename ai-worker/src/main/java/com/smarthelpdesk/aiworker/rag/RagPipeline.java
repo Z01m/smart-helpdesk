@@ -59,13 +59,13 @@ public class RagPipeline {
                         request
                 );
 
-        if (response.chunks() == null) {
+        if (response == null || response.chunks() == null) {
             throw new IllegalStateException(
                     "Knowledge Base returned null chunks"
             );
         }
 
-        return response.chunks();
+        return response.chunks().stream().filter(RagPipeline::usable).toList();
     }
 
     public double getMaxScore(
@@ -77,7 +77,7 @@ public class RagPipeline {
         }
 
         return chunks.stream()
-                .filter(chunk -> chunk != null)
+                .filter(RagPipeline::usable)
                 .mapToDouble(ScoredChunk::score)
                 .max()
                 .orElse(0.0);
@@ -91,7 +91,7 @@ public class RagPipeline {
             return false;
         }
 
-        return getMaxScore(chunks)
+        return chunks.stream().anyMatch(RagPipeline::usable) && getMaxScore(chunks)
                 >= ragProperties.getConfidenceThreshold();
     }
 
@@ -136,5 +136,9 @@ public class RagPipeline {
                 chunks,
                 maxTokens
         );
+    }
+    private static boolean usable(ScoredChunk chunk) {
+        return chunk != null && chunk.text() != null && !chunk.text().isBlank()
+                && Double.isFinite(chunk.score()) && chunk.score() >= 0 && chunk.score() <= 1;
     }
 }
